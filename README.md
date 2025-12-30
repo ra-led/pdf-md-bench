@@ -74,7 +74,7 @@
 | `deepseek-ai/DeepSeek-OCR` | ≈ 3B |
 | `allenai/olmOCR-2-7B-1025` | ≈ 8B |
 | `qwen/qwen3-vl-30b-a3b-instruct` | 30B суммарно, 3B активны (MoE) |
-| `baidu/ernie-4.5-vl-28b-a3b` | ≈ 28B |
+| `baidu/ernie-4.5-vl-28b-a3b` | ≈ 28B суммарно, 3B активны (MoE) |
 | `mistralai/ministral-14b-2512` | 14B |
 | `z-ai/glm-4.6V` | 10B |
 
