@@ -271,11 +271,9 @@ def main():
     args = ap.parse_args()
     print(args)
 
-    # api_key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENROUTER_KEY")
-    # if not api_key:
-    #     raise SystemExit("Missing OPENROUTER_API_KEY env var.")
-    
-    api_key = "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"
+    api_key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENROUTER_KEY")
+    if not api_key:
+        raise SystemExit("Missing OPENROUTER_API_KEY env var.")
 
     pdf_dir = Path(args.pdf_dir)
     out_dir = Path(args.out_dir)
