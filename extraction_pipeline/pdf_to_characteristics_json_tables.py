@@ -291,10 +291,16 @@ def merge_cross_table_splits(
         nxt = table_results[i + 1]
         if not current or not nxt:
             continue
+        prev_item = current[-1]
+        next_item = nxt[0]
+        print("[INFO] Boundary input (prev table last item):")
+        print(json.dumps(prev_item, ensure_ascii=False, indent=2))
+        print("[INFO] Boundary input (next table first item):")
+        print(json.dumps(next_item, ensure_ascii=False, indent=2))
 
         is_split, merged_item = check_split_between_tables(
-            prev_item=current[-1],
-            next_item=nxt[0],
+            prev_item=prev_item,
+            next_item=next_item,
             api_key=api_key,
             model=model,
             timeout_s=timeout_s,
@@ -302,9 +308,12 @@ def merge_cross_table_splits(
             max_tokens=max_tokens,
             require_parameters=require_parameters,
         )
+        print(f"[INFO] Boundary LLM decision: {'one splitted' if is_split else 'two different'}")
 
         if is_split:
             print(f"[INFO] Table boundary {i + 1}/{i + 2}: merged split characteristic")
+            print("[INFO] Boundary merged item:")
+            print(json.dumps(merged_item, ensure_ascii=False, indent=2))
             current[-1] = merged_item
             del nxt[0]
         else:

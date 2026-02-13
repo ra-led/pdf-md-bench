@@ -314,10 +314,16 @@ def merge_cross_window_splits(
         nxt = window_results[i + 1]
         if not current or not nxt:
             continue
+        prev_item = current[-1]
+        next_item = nxt[0]
+        print("[INFO] Boundary input (prev window last item):")
+        print(json.dumps(prev_item, ensure_ascii=False, indent=2))
+        print("[INFO] Boundary input (next window first item):")
+        print(json.dumps(next_item, ensure_ascii=False, indent=2))
 
         decision = check_split_between_windows(
-            prev_item=current[-1],
-            next_item=nxt[0],
+            prev_item=prev_item,
+            next_item=next_item,
             api_key=api_key,
             model=model,
             timeout_s=timeout_s,
@@ -325,12 +331,13 @@ def merge_cross_window_splits(
             max_tokens=max_tokens,
             require_parameters=require_parameters,
         )
+        print(f"[INFO] Boundary LLM decision: {decision}")
 
         if decision == "one splitted":
             print(f"[INFO] Window boundary {i + 1}/{i + 2}: detected split, joining")
             merged_item = join_split_characteristics(
-                prev_item=current[-1],
-                next_item=nxt[0],
+                prev_item=prev_item,
+                next_item=next_item,
                 api_key=api_key,
                 model=model,
                 timeout_s=timeout_s,
@@ -338,6 +345,8 @@ def merge_cross_window_splits(
                 max_tokens=max_tokens,
                 require_parameters=require_parameters,
             )
+            print("[INFO] Boundary merged item:")
+            print(json.dumps(merged_item, ensure_ascii=False, indent=2))
             current[-1] = merged_item
             del nxt[0]
         else:

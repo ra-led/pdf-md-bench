@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
@@ -56,6 +57,9 @@ def run_ocr_with_deepseek_runner(
     print(f"[STEP] Running OCR with DeepSeek runner from: {dpsk_workdir}")
 
     raw_doc_dir = raw_ocr_root / pdf_path.stem
+    if raw_doc_dir.exists():
+        # Avoid mixing stale OCR artifacts from previous runs with the same stem.
+        shutil.rmtree(raw_doc_dir)
     raw_doc_dir.mkdir(parents=True, exist_ok=True)
 
     config_path = dpsk_workdir / "config.py"
@@ -70,9 +74,9 @@ def run_ocr_with_deepseek_runner(
     with atomic_replace(config_path, config_text):
         subprocess.run(run_cmd, cwd=dpsk_workdir, check=True)
 
-    det_candidates = sorted(raw_doc_dir.rglob("*_det.mmd"))
+    det_candidates = sorted(raw_doc_dir.rglob("*_det.mmd"), key=lambda p: p.stat().st_mtime, reverse=True)
     if not det_candidates:
-        mmd_candidates = sorted(raw_doc_dir.rglob("*.mmd"))
+        mmd_candidates = sorted(raw_doc_dir.rglob("*.mmd"), key=lambda p: p.stat().st_mtime, reverse=True)
         if not mmd_candidates:
             raise FileNotFoundError(f"No .mmd output found in {raw_doc_dir}")
         return mmd_candidates[0]
