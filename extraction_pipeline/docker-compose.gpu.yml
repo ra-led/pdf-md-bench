@@ -1,0 +1,35 @@
+services:
+  pdf2char:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pdf2char:gpu
+    container_name: pdf2char-gpu
+    environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      PIPELINE_SCRIPT: ${PIPELINE_SCRIPT:-pdf_to_characteristics_json.py}
+      DPSK_WORKDIR: /opt/DeepSeek-OCR/DeepSeek-OCR-master/DeepSeek-OCR-vllm
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    volumes:
+      - ./input:/workspace/input
+      - ./output:/workspace/output
+      - ./work:/workspace/work
+    working_dir: /workspace
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command:
+      - --pdf
+      - /workspace/input/sample.pdf
+      - --out_json
+      - /workspace/output/sample.json
+      - --dpsk_workdir
+      - /opt/DeepSeek-OCR/DeepSeek-OCR-master/DeepSeek-OCR-vllm
+      - --workdir
+      - /workspace/work
+      - --keep_intermediate

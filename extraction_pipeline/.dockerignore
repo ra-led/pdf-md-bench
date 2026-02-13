@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.ipynb
+.git
+.gitignore
+output
+work
+input
