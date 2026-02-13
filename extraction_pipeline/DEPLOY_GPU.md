@@ -4,11 +4,6 @@
 - Установлен Docker Engine.
 - Настроен доступ к GPU через `nvidia-container-toolkit`.
 - Драйвер NVIDIA установлен на хосте (проверка: `nvidia-smi`).
-- Задан ключ OpenRouter:
-
-```bash
-export OPENROUTER_API_KEY='your_key_here'
-```
 
 ## Сборка образа
 
@@ -21,7 +16,7 @@ docker build -t pdf2char:gpu -f ./Dockerfile .
 
 ```bash
 docker run --rm --gpus all \
-  -e OPENROUTER_API_KEY \
+  -e OPENROUTER_API_KEY=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 \
   -v ./input:/workspace/input \
   -v ./output:/workspace/output \
   -v ./work:/workspace/work \
@@ -39,7 +34,7 @@ docker run --rm --gpus all \
 
 ```bash
 docker run --rm --gpus all \
-  -e OPENROUTER_API_KEY \
+  -e OPENROUTER_API_KEY=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 \
   -e PIPELINE_SCRIPT=pdf_to_characteristics_json_tables.py \
   -v ./input:/workspace/input \
   -v ./output:/workspace/output \
@@ -59,7 +54,7 @@ docker run --rm --gpus all \
 
 ```bash
 docker run --rm --gpus all \
-  -e OPENROUTER_API_KEY \
+  -e OPENROUTER_API_KEY=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 \
   -e PIPELINE_SCRIPT=pdf_to_characteristics_json_pages.py \
   -v ./input:/workspace/input \
   -v ./output:/workspace/output \
@@ -82,7 +77,7 @@ docker run --rm --gpus all \
 
 ```bash
 docker run --rm --gpus all \
-  -e OPENROUTER_API_KEY \
+  -e OPENROUTER_API_KEY=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 \
   -v ./input:/workspace/input \
   -v ./output:/workspace/output \
   -v ./work:/workspace/work \
@@ -100,7 +95,7 @@ docker run --rm --gpus all \
 
 ```bash
 docker run --rm --gpus all \
-  -e OPENROUTER_API_KEY \
+  -e OPENROUTER_API_KEY=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 \
   -e PIPELINE_SCRIPT=pdf_to_characteristics_json_pages.py \
   -v ./input:/workspace/input \
   -v ./output:/workspace/output \
