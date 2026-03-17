@@ -5,6 +5,4 @@ __pycache__
 *.ipynb
 .git
 .gitignore
-output
-work
-input
+

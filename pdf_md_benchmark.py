@@ -51,6 +51,7 @@ except Exception:  # pragma: no cover
 
 TABLE_OVERLAP_THRESHOLD = 0.5
 IMAGE_IOU_THRESHOLD = 0.5
+IMAGE_AREA_OVERLAP_THRESHOLD = 0.4
 TEXT_METEOR_THRESHOLD = 0.2
 ROOT_PARENT = "__ROOT__"
 CLASS_LABELS = {
@@ -934,7 +935,15 @@ def match_tables(gt: List[Dict[str, object]], pred: List[Dict[str, object]], ted
     return matches, table_metrics
 
 
-def bbox_iou(a: Sequence[float], b: Sequence[float]) -> float:
+def bbox_area(bbox: Sequence[float]) -> float:
+    if not bbox or len(bbox) != 4:
+        return 0.0
+    width = max(bbox[2] - bbox[0], 0)
+    height = max(bbox[3] - bbox[1], 0)
+    return width * height
+
+
+def bbox_intersection_area(a: Sequence[float], b: Sequence[float]) -> float:
     if not a or not b:
         return 0.0
     ax1, ay1, ax2, ay2 = a
@@ -945,9 +954,19 @@ def bbox_iou(a: Sequence[float], b: Sequence[float]) -> float:
     inter_y2 = min(ay2, by2)
     if inter_x1 >= inter_x2 or inter_y1 >= inter_y2:
         return 0.0
-    inter_area = (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
-    area_a = max((ax2 - ax1), 0) * max((ay2 - ay1), 0)
-    area_b = max((bx2 - bx1), 0) * max((by2 - by1), 0)
+    return (inter_x2 - inter_x1) * (inter_y2 - inter_y1)
+
+
+def bbox_overlap_ratio(a: Sequence[float], b: Sequence[float]) -> float:
+    inter = bbox_intersection_area(a, b)
+    min_area = min(bbox_area(a), bbox_area(b))
+    return inter / min_area if min_area else 0.0
+
+
+def bbox_iou(a: Sequence[float], b: Sequence[float]) -> float:
+    inter_area = bbox_intersection_area(a, b)
+    area_a = bbox_area(a)
+    area_b = bbox_area(b)
     union = area_a + area_b - inter_area
     return inter_area / union if union else 0.0
 
@@ -981,7 +1000,7 @@ def match_images(gt: List[Dict[str, object]], pred: List[Dict[str, object]]) -> 
     gt_images = [e for e in gt if e["type"] == "image"]
     pred_images = [e for e in pred if e["type"] == "image"]
     matches: List[Dict[str, object]] = []
-    candidates: List[Tuple[float, int, int]] = []
+    candidates: List[Tuple[float, float, float, int, int]] = []
     for gi, g in enumerate(gt_images):
         bbox_g = g.get("meta", {}).get("bbox")
         if not bbox_g:
@@ -991,13 +1010,15 @@ def match_images(gt: List[Dict[str, object]], pred: List[Dict[str, object]]) -> 
             if not bbox_p:
                 continue
             iou = bbox_iou(bbox_g, bbox_p)
-            if iou >= IMAGE_IOU_THRESHOLD:
-                candidates.append((iou, gi, pi))
-    candidates.sort(reverse=True)
+            area_overlap = bbox_overlap_ratio(bbox_g, bbox_p)
+            if iou >= IMAGE_IOU_THRESHOLD or area_overlap >= IMAGE_AREA_OVERLAP_THRESHOLD:
+                score_value = max(iou, area_overlap)
+                candidates.append((score_value, iou, area_overlap, gi, pi))
+    candidates.sort(key=lambda item: item[0], reverse=True)
     used_gt = set()
     used_pred = set()
     desc_scores: List[float] = []
-    for iou, gi, pi in candidates:
+    for _, iou, area_overlap, gi, pi in candidates:
         if gi in used_gt or pi in used_pred:
             continue
         gt_img = gt_images[gi]
@@ -1011,7 +1032,7 @@ def match_images(gt: List[Dict[str, object]], pred: List[Dict[str, object]]) -> 
             "pred_id": pred_img["id"],
             "gt_bbox": gt_img.get("meta", {}).get("bbox"),
             "pred_bbox": pred_img.get("meta", {}).get("bbox"),
-            "score": {"iou": iou, "desc_cosine": desc_score},
+            "score": {"iou": iou, "area_overlap": area_overlap, "desc_cosine": desc_score},
             "gt_desc": gt_img.get("meta", {}).get("desc", gt_img.get("text_norm", "")),
             "pred_desc": pred_img.get("meta", {}).get("desc", pred_img.get("text_norm", "")),
         })
@@ -1027,7 +1048,7 @@ def match_images(gt: List[Dict[str, object]], pred: List[Dict[str, object]]) -> 
             "pred_id": None,
             "gt_bbox": img.get("meta", {}).get("bbox"),
             "pred_bbox": None,
-            "score": {"iou": 0.0, "desc_cosine": 0.0},
+            "score": {"iou": 0.0, "area_overlap": 0.0, "desc_cosine": 0.0},
             "gt_desc": img.get("meta", {}).get("desc", img.get("text_norm", "")),
             "pred_desc": "",
         })
@@ -1039,7 +1060,7 @@ def match_images(gt: List[Dict[str, object]], pred: List[Dict[str, object]]) -> 
             "pred_id": img["id"],
             "gt_bbox": None,
             "pred_bbox": img.get("meta", {}).get("bbox"),
-            "score": {"iou": 0.0, "desc_cosine": 0.0},
+            "score": {"iou": 0.0, "area_overlap": 0.0, "desc_cosine": 0.0},
             "gt_desc": "",
             "pred_desc": img.get("meta", {}).get("desc", img.get("text_norm", "")),
         })
@@ -1305,6 +1326,33 @@ def flatten_dataset_metrics(model_id: str, metrics: Dict[str, Any]) -> Dict[str,
     table_micro = tables.get("micro", {})
     image_macro = images.get("macro", {})
     image_micro = images.get("micro", {})
+    text_edit_micro = text.get("edit_norm_micro")
+    text_meteor_macro = text.get("meteor_macro")
+    text_class_macro = text.get("classification_macro_f1")
+    table_micro_f1 = table_micro.get("f1")
+    table_teds = tables.get("teds_mean_on_matched")
+    heading_edge_micro = heading.get("edge_f1_micro")
+    image_micro_f1 = image_micro.get("f1")
+    image_desc_cosine = images.get("desc_cosine_mean_on_matched")
+
+    def zero_if_none(value: Optional[float]) -> float:
+        return float(value) if value is not None else 0.0
+
+    e_prime = 1 - text_edit_micro if text_edit_micro is not None else 0.0
+    m_component = zero_if_none(text_meteor_macro)
+    c_component = zero_if_none(text_class_macro)
+    t_component = zero_if_none(table_micro_f1) * zero_if_none(table_teds)
+    h_component = zero_if_none(heading_edge_micro)
+    i_component = (3 * zero_if_none(image_micro_f1) + zero_if_none(image_desc_cosine)) / 4
+    total_score = (
+        0.25 * e_prime
+        + 0.25 * m_component
+        + 0.15 * c_component
+        + 0.20 * t_component
+        + 0.10 * h_component
+        + 0.05 * i_component
+    )
+
     return {
         "model_id": model_id,
         "text_edit_norm_macro": text.get("edit_norm_macro"),
@@ -1335,6 +1383,7 @@ def flatten_dataset_metrics(model_id: str, metrics: Dict[str, Any]) -> Dict[str,
         "heading_parent_acc_micro": heading.get("parent_accuracy_micro"),
         "heading_edge_f1_macro": heading.get("edge_f1_macro"),
         "heading_edge_f1_micro": heading.get("edge_f1_micro"),
+        "Total SCORE": total_score,
     }
 
 
@@ -1371,6 +1420,7 @@ def write_bench_csv(csv_path: Path, rows: List[Dict[str, Any]]) -> None:
         "heading_parent_acc_micro",
         "heading_edge_f1_macro",
         "heading_edge_f1_micro",
+        "Total SCORE",
     ]
     ensure_dir(csv_path.parent)
     with csv_path.open("w", newline="", encoding="utf-8") as fh:

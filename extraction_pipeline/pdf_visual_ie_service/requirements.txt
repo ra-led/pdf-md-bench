@@ -1,0 +1,7 @@
+pypdfium2
+ms-swift==3.9.0
+vllm==0.11.0
+timm
+accelerate>=0.26.0
+qwen-vl-utils==0.0.14
+

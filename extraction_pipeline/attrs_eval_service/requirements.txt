@@ -1,0 +1,5 @@
+vllm==0.8.5
+transformers==4.57.3
+pandas
+tqdm
+openpyxl
